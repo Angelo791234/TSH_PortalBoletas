@@ -111,6 +111,7 @@
 </div>
 
 <!-- ====== FIREBASE ====== -->
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
@@ -125,7 +126,7 @@ const firebaseConfig = {
 };
 // Cambia esta clave antes de publicar el sitio:
 const ADMIN_USER = "admin";
-const ADMIN_PASS = "Angelo79!$";
+const ADMIN_PASS = "cambia-esta-clave";
 // ================================================================
 
 firebase.initializeApp(firebaseConfig);
@@ -207,17 +208,65 @@ async function cargarBoletasEmpleado(){
   });
 }
 
-async function descargarBoleta(id, b){
+function trigerDescarga(dataUrl, nombreArchivo){
   const a = document.createElement('a');
-  a.href = b.pdfBase64;
-  a.download = b.nombreArchivo || `boleta-${b.mes}-${b.anio}.pdf`;
+  a.href = dataUrl;
+  a.download = nombreArchivo || 'boleta.pdf';
   document.body.appendChild(a);
   a.click();
   a.remove();
-  if(!b.firmado){
-    await db.collection('boletas').doc(id).update({ firmado:true, fechaFirma: new Date().toISOString() });
-    cargarBoletasEmpleado();
+}
+
+function base64ToBytes(dataUrl){
+  const base64 = dataUrl.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function bytesToBase64DataUrl(bytes){
+  let binary = '';
+  const chunk = 8192;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
   }
+  return 'data:application/pdf;base64,' + btoa(binary);
+}
+
+async function sellarPdf(dataUrlOriginal, nombreCompleto){
+  const bytes = base64ToBytes(dataUrlOriginal);
+  const pdfDoc = await PDFLib.PDFDocument.load(bytes);
+  const paginas = pdfDoc.getPages();
+  const fecha = new Date();
+  const fechaTexto = fecha.toLocaleDateString('es-PE') + ' ' + fecha.toLocaleTimeString('es-PE');
+  const font = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+  paginas.forEach(pagina=>{
+    const { width } = pagina.getSize();
+    const x = Math.max(20, width - 230);
+    const y = 40;
+    pagina.drawRectangle({ x: x - 10, y: y - 10, width: 220, height: 70, borderColor: PDFLib.rgb(0.8,0,0), borderWidth: 2, rotate: PDFLib.degrees(-8) });
+    pagina.drawText('FIRMADO CONFORME', { x, y: y + 40, size: 12, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
+    pagina.drawText(nombreCompleto.toUpperCase(), { x, y: y + 22, size: 8, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
+    pagina.drawText(fechaTexto, { x, y: y + 8, size: 8, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
+  });
+  const bytesFirmados = await pdfDoc.save();
+  return bytesToBase64DataUrl(bytesFirmados);
+}
+
+async function descargarBoleta(id, b){
+  if(b.firmado){
+    trigerDescarga(b.pdfFirmadoBase64 || b.pdfBase64, b.nombreArchivo);
+    return;
+  }
+  const pdfFirmadoBase64 = await sellarPdf(b.pdfBase64, empleadoActual.nombre);
+  await db.collection('boletas').doc(id).update({
+    firmado: true,
+    fechaFirma: new Date().toISOString(),
+    pdfFirmadoBase64
+  });
+  trigerDescarga(pdfFirmadoBase64, b.nombreArchivo);
+  cargarBoletasEmpleado();
 }
 
 async function agregarEmpleado(){
