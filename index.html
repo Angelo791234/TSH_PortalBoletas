@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal de Boletas</title>
+<style>
+  :root{
+    --morado:#3d2f7d; --morado-oscuro:#241a52; --verde:#1fae6a; --verde-claro:#e6f7ef;
+    --fondo:#f4f2ef; --texto:#222; --gris:#888; --borde:#ddd;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--fondo);color:var(--texto);}
+  header{background:var(--morado-oscuro);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;}
+  header h1{font-size:18px;margin:0;}
+  .btn{background:var(--morado);color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-size:14px;}
+  .btn:hover{opacity:.9;}
+  .btn-outline{background:transparent;border:1px solid #fff;color:#fff;}
+  .contenedor{max-width:720px;margin:24px auto;padding:0 16px;}
+  .card{background:#fff;border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  input,select{width:100%;padding:10px;margin:6px 0 14px;border:1px solid var(--borde);border-radius:6px;font-size:14px;}
+  label{font-size:13px;color:var(--gris);}
+  .tabs{display:flex;border-bottom:2px solid var(--borde);margin-bottom:16px;}
+  .tab{flex:1;text-align:center;padding:10px;cursor:pointer;color:var(--gris);font-weight:bold;}
+  .tab.activo{color:var(--morado);border-bottom:3px solid var(--morado);}
+  .boleta{border-left:4px solid var(--verde);background:var(--verde-claro);padding:12px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+  .boleta.pendiente{border-left-color:#e0a91f;background:#fff8e6;}
+  .badge{font-size:11px;padding:3px 8px;border-radius:10px;background:var(--verde);color:#fff;}
+  .badge.pend{background:#e0a91f;}
+  .error{color:#c0392b;font-size:13px;}
+  .oculto{display:none;}
+  .fila-archivo{display:grid;grid-template-columns:1fr 1fr 80px;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;}
+  small.info{display:block;color:var(--gris);margin-top:-8px;margin-bottom:14px;}
+  a.link{color:var(--morado);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="tituloHeader">Portal de Boletas</h1>
+  <button class="btn btn-outline oculto" id="btnSalir" onclick="salir()">Salir</button>
+</header>
+
+<div class="contenedor">
+
+  <!-- LOGIN -->
+  <div id="vistaLogin" class="card">
+    <h2>Ingresar</h2>
+    <div id="loginEmpleado">
+      <label>N° de DNI</label>
+      <input id="dniInput" placeholder="Ej: 45678912" maxlength="8">
+      <button class="btn" onclick="loginEmpleado()">Ingresar</button>
+      <p class="error" id="errorEmpleado"></p>
+      <p style="margin-top:16px;font-size:13px;">
+        <a class="link" href="#" onclick="mostrarAdmin();return false;">Ingresar como administrador</a>
+      </p>
+    </div>
+    <div id="loginAdmin" class="oculto">
+      <label>Usuario administrador</label>
+      <input id="adminUser">
+      <label>Contraseña</label>
+      <input id="adminPass" type="password">
+      <button class="btn" onclick="loginAdmin()">Ingresar</button>
+      <p class="error" id="errorAdmin"></p>
+      <p style="margin-top:16px;font-size:13px;">
+        <a class="link" href="#" onclick="mostrarEmpleado();return false;">Volver a ingreso de trabajador</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- VISTA EMPLEADO -->
+  <div id="vistaEmpleado" class="oculto">
+    <div class="card">
+      <h2 id="saludoEmpleado"></h2>
+      <div class="tabs">
+        <div class="tab activo" id="tabPend" onclick="cambiarTab('pend')">Pendientes</div>
+        <div class="tab" id="tabFirm" onclick="cambiarTab('firm')">Firmados</div>
+      </div>
+      <div id="listaPendientes"></div>
+      <div id="listaFirmados" class="oculto"></div>
+    </div>
+  </div>
+
+  <!-- VISTA ADMIN -->
+  <div id="vistaAdmin" class="oculto">
+    <div class="card">
+      <h2>Agregar trabajador</h2>
+      <label>DNI</label>
+      <input id="nuevoDni" maxlength="8">
+      <label>Nombre completo</label>
+      <input id="nuevoNombre">
+      <button class="btn" onclick="agregarEmpleado()">Guardar trabajador</button>
+      <p class="error" id="errorEmpleadoAdmin"></p>
+    </div>
+
+    <div class="card">
+      <h2>Subir boletas (varias a la vez)</h2>
+      <small class="info">Selecciona uno o más PDF. Luego asigna trabajador y mes/año a cada archivo.</small>
+      <input type="file" id="archivosInput" accept="application/pdf" multiple onchange="prepararArchivos()">
+      <div id="filasArchivos"></div>
+      <button class="btn oculto" id="btnSubirTodo" onclick="subirTodo()">Subir boletas</button>
+      <p class="error" id="errorSubida"></p>
+    </div>
+
+    <div class="card">
+      <h2>Boletas subidas</h2>
+      <div id="listaAdminBoletas"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====== FIREBASE ====== -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script>
+// ============ CONFIGURA AQUI TU PROYECTO FIREBASE ============
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_ID",
+  appId: "TU_APP_ID"
+};
+// Cambia esta clave antes de publicar el sitio:
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "cambia-esta-clave";
+// ================================================================
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+let empleadoActual = null;
+let archivosSeleccionados = [];
+let empleadosCache = [];
+
+function mostrarAdmin(){ document.getElementById('loginEmpleado').classList.add('oculto'); document.getElementById('loginAdmin').classList.remove('oculto'); }
+function mostrarEmpleado(){ document.getElementById('loginAdmin').classList.add('oculto'); document.getElementById('loginEmpleado').classList.remove('oculto'); }
+
+function salir(){
+  empleadoActual = null;
+  document.getElementById('vistaEmpleado').classList.add('oculto');
+  document.getElementById('vistaAdmin').classList.add('oculto');
+  document.getElementById('vistaLogin').classList.remove('oculto');
+  document.getElementById('btnSalir').classList.add('oculto');
+  document.getElementById('tituloHeader').textContent = 'Portal de Boletas';
+}
+
+async function loginEmpleado(){
+  const dni = document.getElementById('dniInput').value.trim();
+  const err = document.getElementById('errorEmpleado');
+  err.textContent = '';
+  if(!dni){ err.textContent = 'Ingresa tu DNI.'; return; }
+  const doc = await db.collection('empleados').doc(dni).get();
+  if(!doc.exists){ err.textContent = 'DNI no encontrado. Contacta a tu administrador.'; return; }
+  empleadoActual = { dni, ...doc.data() };
+  document.getElementById('vistaLogin').classList.add('oculto');
+  document.getElementById('vistaEmpleado').classList.remove('oculto');
+  document.getElementById('btnSalir').classList.remove('oculto');
+  document.getElementById('tituloHeader').textContent = 'Mis Boletas';
+  document.getElementById('saludoEmpleado').textContent = 'Hola, ' + empleadoActual.nombre;
+  cargarBoletasEmpleado();
+}
+
+function loginAdmin(){
+  const u = document.getElementById('adminUser').value.trim();
+  const p = document.getElementById('adminPass').value;
+  const err = document.getElementById('errorAdmin');
+  if(u === ADMIN_USER && p === ADMIN_PASS){
+    document.getElementById('vistaLogin').classList.add('oculto');
+    document.getElementById('vistaAdmin').classList.remove('oculto');
+    document.getElementById('btnSalir').classList.remove('oculto');
+    document.getElementById('tituloHeader').textContent = 'Panel Administrador';
+    cargarEmpleadosCache();
+    cargarBoletasAdmin();
+  } else {
+    err.textContent = 'Usuario o contraseña incorrectos.';
+  }
+}
+
+function cambiarTab(t){
+  document.getElementById('tabPend').classList.toggle('activo', t==='pend');
+  document.getElementById('tabFirm').classList.toggle('activo', t==='firm');
+  document.getElementById('listaPendientes').classList.toggle('oculto', t!=='pend');
+  document.getElementById('listaFirmados').classList.toggle('oculto', t!=='firm');
+}
+
+async function cargarBoletasEmpleado(){
+  const snap = await db.collection('boletas').where('dni','==',empleadoActual.dni).get();
+  const pend = document.getElementById('listaPendientes');
+  const firm = document.getElementById('listaFirmados');
+  pend.innerHTML = ''; firm.innerHTML = '';
+  if(snap.empty){ pend.innerHTML = '<p style="color:var(--gris)">No tienes boletas registradas.</p>'; }
+  snap.forEach(doc=>{
+    const b = doc.data();
+    const div = document.createElement('div');
+    div.className = 'boleta ' + (b.firmado ? '' : 'pendiente');
+    div.innerHTML = `<div><strong>${b.mes}/${b.anio}</strong><br>
+      <span class="badge ${b.firmado?'':'pend'}">${b.firmado?'FIRMADO':'PENDIENTE'}</span></div>`;
+    const boton = document.createElement('button');
+    boton.className = 'btn';
+    boton.textContent = b.firmado ? 'Descargar' : 'Descargar y firmar';
+    boton.onclick = ()=>descargarBoleta(doc.id, b);
+    div.appendChild(boton);
+    (b.firmado ? firm : pend).appendChild(div);
+  });
+}
+
+async function descargarBoleta(id, b){
+  window.open(b.url, '_blank');
+  if(!b.firmado){
+    await db.collection('boletas').doc(id).update({ firmado:true, fechaFirma: new Date().toISOString() });
+    cargarBoletasEmpleado();
+  }
+}
+
+async function agregarEmpleado(){
+  const dni = document.getElementById('nuevoDni').value.trim();
+  const nombre = document.getElementById('nuevoNombre').value.trim();
+  const err = document.getElementById('errorEmpleadoAdmin');
+  err.textContent = '';
+  if(!dni || !nombre){ err.textContent = 'Completa DNI y nombre.'; return; }
+  await db.collection('empleados').doc(dni).set({ nombre });
+  document.getElementById('nuevoDni').value = '';
+  document.getElementById('nuevoNombre').value = '';
+  cargarEmpleadosCache();
+}
+
+async function cargarEmpleadosCache(){
+  const snap = await db.collection('empleados').get();
+  empleadosCache = snap.docs.map(d=>({ dni:d.id, nombre:d.data().nombre }));
+}
+
+function prepararArchivos(){
+  const input = document.getElementById('archivosInput');
+  archivosSeleccionados = Array.from(input.files);
+  const cont = document.getElementById('filasArchivos');
+  cont.innerHTML = '';
+  const meses = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  archivosSeleccionados.forEach((f, i)=>{
+    const fila = document.createElement('div');
+    fila.className = 'fila-archivo';
+    const opcionesEmpleados = empleadosCache.map(e=>`<option value="${e.dni}">${e.nombre} (${e.dni})</option>`).join('');
+    const opcionesMes = meses.map(m=>`<option value="${m}">${m}</option>`).join('');
+    fila.innerHTML = `
+      <span>${f.name}</span>
+      <select id="emp_${i}"><option value="">-- trabajador --</option>${opcionesEmpleados}</select>
+      <select id="mes_${i}">${opcionesMes}</select>`;
+    const anio = document.createElement('input');
+    anio.id = 'anio_' + i; anio.value = new Date().getFullYear(); anio.style.width='70px';
+    fila.appendChild(anio);
+    cont.appendChild(fila);
+  });
+  document.getElementById('btnSubirTodo').classList.toggle('oculto', archivosSeleccionados.length===0);
+}
+
+async function subirTodo(){
+  const err = document.getElementById('errorSubida');
+  err.textContent = '';
+  for(let i=0;i<archivosSeleccionados.length;i++){
+    const dni = document.getElementById('emp_'+i).value;
+    const mes = document.getElementById('mes_'+i).value;
+    const anio = document.getElementById('anio_'+i).value;
+    if(!dni){ err.textContent = 'Falta asignar trabajador en el archivo: ' + archivosSeleccionados[i].name; return; }
+    const archivo = archivosSeleccionados[i];
+    const ref = storage.ref().child(`boletas/${dni}/${anio}-${mes}.pdf`);
+    await ref.put(archivo);
+    const url = await ref.getDownloadURL();
+    await db.collection('boletas').add({ dni, mes, anio, url, firmado:false, fechaSubida: new Date().toISOString() });
+  }
+  document.getElementById('archivosInput').value = '';
+  document.getElementById('filasArchivos').innerHTML = '';
+  document.getElementById('btnSubirTodo').classList.add('oculto');
+  cargarBoletasAdmin();
+}
+
+async function cargarBoletasAdmin(){
+  const snap = await db.collection('boletas').orderBy('fechaSubida','desc').get();
+  const cont = document.getElementById('listaAdminBoletas');
+  cont.innerHTML = '';
+  if(snap.empty){ cont.innerHTML = '<p style="color:var(--gris)">Sin boletas subidas todavía.</p>'; return; }
+  snap.forEach(doc=>{
+    const b = doc.data();
+    const emp = empleadosCache.find(e=>e.dni===b.dni);
+    const div = document.createElement('div');
+    div.className = 'boleta ' + (b.firmado ? '' : 'pendiente');
+    div.innerHTML = `<div>${emp?emp.nombre:b.dni} — ${b.mes}/${b.anio}
+      <br><span class="badge ${b.firmado?'':'pend'}">${b.firmado?'FIRMADO':'PENDIENTE'}</span></div>`;
+    cont.appendChild(div);
+  });
+}
+</script>
+</body>
+</html>
