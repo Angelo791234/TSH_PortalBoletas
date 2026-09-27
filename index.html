@@ -47,10 +47,15 @@
   <div id="vistaLogin" class="card">
     <h2>Ingresar</h2>
     <div id="loginEmpleado">
-      <label>N° de DNI</label>
+      <label>N° de Dni del Colaborador</label>
       <input id="dniInput" placeholder="Ej: 45678912" maxlength="8">
+      <label>Clave</label>
+      <input id="claveInput" type="password" placeholder="Tu clave">
       <button class="btn" onclick="loginEmpleado()">Ingresar</button>
       <p class="error" id="errorEmpleado"></p>
+      <p style="margin-top:10px;font-size:13px;">
+        <a class="link" href="#" onclick="olvideClave();return false;">¿Olvidaste tu clave?</a>
+      </p>
       <p style="margin-top:16px;font-size:13px;">
         <a class="link" href="#" onclick="mostrarAdmin();return false;">Ingresar como administrador</a>
       </p>
@@ -66,6 +71,18 @@
         <a class="link" href="#" onclick="mostrarEmpleado();return false;">Volver a ingreso de trabajador</a>
       </p>
     </div>
+  </div>
+
+  <!-- CAMBIO DE CLAVE (primer ingreso) -->
+  <div id="vistaCambioClave" class="card oculto">
+    <h2>Cambia tu clave</h2>
+    <p style="font-size:13px;color:var(--gris)">Por seguridad, crea una clave nueva (distinta a tu DNI) para continuar.</p>
+    <label>Nueva clave</label>
+    <input id="nuevaClave1" type="password">
+    <label>Confirmar nueva clave</label>
+    <input id="nuevaClave2" type="password">
+    <button class="btn" onclick="guardarNuevaClave()">Guardar y continuar</button>
+    <p class="error" id="errorClave"></p>
   </div>
 
   <!-- VISTA EMPLEADO -->
@@ -103,6 +120,11 @@
     </div>
 
     <div class="card">
+      <h2>Solicitudes de restablecimiento de clave</h2>
+      <div id="listaSolicitudes"></div>
+    </div>
+
+    <div class="card">
       <h2>Boletas subidas</h2>
       <div id="listaAdminBoletas"></div>
     </div>
@@ -126,7 +148,7 @@ const firebaseConfig = {
 };
 // Cambia esta clave antes de publicar el sitio:
 const ADMIN_USER = "admin";
-const ADMIN_PASS = "Angelo79!$";
+const ADMIN_PASS = "cambia-esta-clave";
 // ================================================================
 
 firebase.initializeApp(firebaseConfig);
@@ -143,25 +165,69 @@ function salir(){
   empleadoActual = null;
   document.getElementById('vistaEmpleado').classList.add('oculto');
   document.getElementById('vistaAdmin').classList.add('oculto');
+  document.getElementById('vistaCambioClave').classList.add('oculto');
   document.getElementById('vistaLogin').classList.remove('oculto');
   document.getElementById('btnSalir').classList.add('oculto');
   document.getElementById('tituloHeader').textContent = 'Portal de Boletas';
 }
 
-async function loginEmpleado(){
-  const dni = document.getElementById('dniInput').value.trim();
-  const err = document.getElementById('errorEmpleado');
-  err.textContent = '';
-  if(!dni){ err.textContent = 'Ingresa tu DNI.'; return; }
-  const doc = await db.collection('empleados').doc(dni).get();
-  if(!doc.exists){ err.textContent = 'DNI no encontrado. Contacta a tu administrador.'; return; }
-  empleadoActual = { dni, ...doc.data() };
+function mostrarVistaEmpleado(){
   document.getElementById('vistaLogin').classList.add('oculto');
+  document.getElementById('vistaCambioClave').classList.add('oculto');
   document.getElementById('vistaEmpleado').classList.remove('oculto');
   document.getElementById('btnSalir').classList.remove('oculto');
   document.getElementById('tituloHeader').textContent = 'Mis Boletas';
   document.getElementById('saludoEmpleado').textContent = 'Hola, ' + empleadoActual.nombre;
   cargarBoletasEmpleado();
+}
+
+async function loginEmpleado(){
+  const dni = document.getElementById('dniInput').value.trim();
+  const clave = document.getElementById('claveInput').value;
+  const err = document.getElementById('errorEmpleado');
+  err.style.color = '';
+  err.textContent = '';
+  if(!dni || !clave){ err.textContent = 'Ingresa tu DNI y tu clave.'; return; }
+  const doc = await db.collection('empleados').doc(dni).get();
+  if(!doc.exists){ err.textContent = 'DNI no encontrado. Contacta a tu administrador.'; return; }
+  const data = doc.data();
+  const claveGuardada = data.password || data.dni || dni;
+  if(claveGuardada !== clave){ err.textContent = 'Clave incorrecta.'; return; }
+  empleadoActual = { dni, ...data };
+  document.getElementById('vistaLogin').classList.add('oculto');
+  if(!data.passwordCambiada){
+    document.getElementById('vistaCambioClave').classList.remove('oculto');
+    document.getElementById('btnSalir').classList.remove('oculto');
+    document.getElementById('tituloHeader').textContent = 'Cambiar clave';
+  } else {
+    mostrarVistaEmpleado();
+  }
+}
+
+async function guardarNuevaClave(){
+  const c1 = document.getElementById('nuevaClave1').value;
+  const c2 = document.getElementById('nuevaClave2').value;
+  const err = document.getElementById('errorClave');
+  err.textContent = '';
+  if(!c1 || c1.length < 4){ err.textContent = 'La clave debe tener al menos 4 caracteres.'; return; }
+  if(c1 !== c2){ err.textContent = 'Las claves no coinciden.'; return; }
+  if(c1 === empleadoActual.dni){ err.textContent = 'La nueva clave debe ser diferente a tu DNI.'; return; }
+  await db.collection('empleados').doc(empleadoActual.dni).update({ password: c1, passwordCambiada: true });
+  empleadoActual.password = c1;
+  empleadoActual.passwordCambiada = true;
+  mostrarVistaEmpleado();
+}
+
+async function olvideClave(){
+  const dni = document.getElementById('dniInput').value.trim();
+  const err = document.getElementById('errorEmpleado');
+  err.style.color = '';
+  if(!dni){ err.textContent = 'Escribe tu DNI arriba antes de pedir el restablecimiento.'; return; }
+  const doc = await db.collection('empleados').doc(dni).get();
+  if(!doc.exists){ err.textContent = 'Ese DNI no está registrado.'; return; }
+  await db.collection('solicitudesReset').add({ dni, nombre: doc.data().nombre, fecha: new Date().toISOString(), atendida:false });
+  err.style.color = 'var(--verde)';
+  err.textContent = 'Listo, tu solicitud fue enviada al administrador.';
 }
 
 function loginAdmin(){
@@ -175,6 +241,7 @@ function loginAdmin(){
     document.getElementById('tituloHeader').textContent = 'Panel Administrador';
     cargarEmpleadosCache();
     cargarBoletasAdmin();
+    cargarSolicitudes();
   } else {
     err.textContent = 'Usuario o contraseña incorrectos.';
   }
@@ -234,7 +301,7 @@ function bytesToBase64DataUrl(bytes){
   return 'data:application/pdf;base64,' + btoa(binary);
 }
 
-async function sellarPdf(dataUrlOriginal, nombreCompleto){
+async function sellarPdf(dataUrlOriginal, nombreCompleto, dniColaborador){
   const bytes = base64ToBytes(dataUrlOriginal);
   const pdfDoc = await PDFLib.PDFDocument.load(bytes);
   const paginas = pdfDoc.getPages();
@@ -245,10 +312,11 @@ async function sellarPdf(dataUrlOriginal, nombreCompleto){
     const { width } = pagina.getSize();
     const x = Math.max(20, width - 230);
     const y = 40;
-    pagina.drawRectangle({ x: x - 10, y: y - 10, width: 220, height: 70, borderColor: PDFLib.rgb(0.8,0,0), borderWidth: 2, rotate: PDFLib.degrees(-8) });
-    pagina.drawText('FIRMADO CONFORME', { x, y: y + 40, size: 12, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
-    pagina.drawText(nombreCompleto.toUpperCase(), { x, y: y + 22, size: 8, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
-    pagina.drawText(fechaTexto, { x, y: y + 8, size: 8, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
+    pagina.drawRectangle({ x: x - 10, y: y - 10, width: 220, height: 90, borderColor: PDFLib.rgb(0.8,0,0), borderWidth: 2, rotate: PDFLib.degrees(-8) });
+    pagina.drawText('FIRMADO CONFORME', { x, y: y + 58, size: 11, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
+    pagina.drawText(nombreCompleto.toUpperCase(), { x, y: y + 42, size: 8, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
+    pagina.drawText('DNI: ' + dniColaborador, { x, y: y + 27, size: 8, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
+    pagina.drawText(fechaTexto, { x, y: y + 12, size: 8, font, color: PDFLib.rgb(0.8,0,0), rotate: PDFLib.degrees(-8) });
   });
   const bytesFirmados = await pdfDoc.save();
   return bytesToBase64DataUrl(bytesFirmados);
@@ -259,7 +327,7 @@ async function descargarBoleta(id, b){
     trigerDescarga(b.pdfFirmadoBase64 || b.pdfBase64, b.nombreArchivo);
     return;
   }
-  const pdfFirmadoBase64 = await sellarPdf(b.pdfBase64, empleadoActual.nombre);
+  const pdfFirmadoBase64 = await sellarPdf(b.pdfBase64, empleadoActual.nombre, empleadoActual.dni);
   await db.collection('boletas').doc(id).update({
     firmado: true,
     fechaFirma: new Date().toISOString(),
@@ -275,10 +343,38 @@ async function agregarEmpleado(){
   const err = document.getElementById('errorEmpleadoAdmin');
   err.textContent = '';
   if(!dni || !nombre){ err.textContent = 'Completa DNI y nombre.'; return; }
-  await db.collection('empleados').doc(dni).set({ nombre });
+  const existente = await db.collection('empleados').doc(dni).get();
+  if(existente.exists){
+    await db.collection('empleados').doc(dni).update({ nombre });
+  } else {
+    await db.collection('empleados').doc(dni).set({ nombre, password: dni, passwordCambiada: false });
+  }
   document.getElementById('nuevoDni').value = '';
   document.getElementById('nuevoNombre').value = '';
   cargarEmpleadosCache();
+}
+
+async function cargarSolicitudes(){
+  const snap = await db.collection('solicitudesReset').where('atendida','==',false).get();
+  const cont = document.getElementById('listaSolicitudes');
+  cont.innerHTML = '';
+  if(snap.empty){ cont.innerHTML = '<p style="color:var(--gris)">Sin solicitudes pendientes.</p>'; return; }
+  snap.forEach(doc=>{
+    const s = doc.data();
+    const div = document.createElement('div');
+    div.className = 'boleta pendiente';
+    div.innerHTML = `<div>${s.nombre || s.dni} — DNI ${s.dni}<br><span style="font-size:11px;color:var(--gris)">${new Date(s.fecha).toLocaleString('es-PE')}</span></div>`;
+    const boton = document.createElement('button');
+    boton.className = 'btn';
+    boton.textContent = 'Restablecer a DNI';
+    boton.onclick = async ()=>{
+      await db.collection('empleados').doc(s.dni).update({ password: s.dni, passwordCambiada:false });
+      await db.collection('solicitudesReset').doc(doc.id).update({ atendida:true });
+      cargarSolicitudes();
+    };
+    div.appendChild(boton);
+    cont.appendChild(div);
+  });
 }
 
 async function cargarEmpleadosCache(){
@@ -349,6 +445,13 @@ async function cargarBoletasAdmin(){
     div.className = 'boleta ' + (b.firmado ? '' : 'pendiente');
     div.innerHTML = `<div>${emp?emp.nombre:b.dni} — ${b.mes}/${b.anio}
       <br><span class="badge ${b.firmado?'':'pend'}">${b.firmado?'FIRMADO':'PENDIENTE'}</span></div>`;
+    if(b.firmado){
+      const boton = document.createElement('button');
+      boton.className = 'btn';
+      boton.textContent = 'Descargar';
+      boton.onclick = ()=>trigerDescarga(b.pdfFirmadoBase64 || b.pdfBase64, b.nombreArchivo);
+      div.appendChild(boton);
+    }
     cont.appendChild(div);
   });
 }
