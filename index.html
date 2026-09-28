@@ -130,7 +130,7 @@
       <button class="btn" onclick="loginAdmin()">Ingresar</button>
       <p class="error" id="errorAdmin"></p>
       <p style="margin-top:16px;font-size:13px;">
-        <a class="link" href="#" onclick="mostrarEmpleado();return false;">Volver a ingreso de trabajador</a>
+        <a class="link" href="#" onclick="mostrarEmpleado();return false;">Volver a ingreso de colaborador</a>
       </p>
     </div>
   </div>
@@ -156,7 +156,7 @@
   <!-- VISTA ADMIN -->
   <div id="vistaAdmin" class="oculto">
     <div class="card">
-      <h2>Agregar trabajador</h2>
+      <h2>Agregar colaborador</h2>
       <label>N° de Dni del Colaborador</label>
       <input id="nuevoDni" maxlength="8">
       <label>Nombres del Colaborador</label>
@@ -165,13 +165,21 @@
       <input id="nuevoEmail" type="email">
       <label>N° de Celular</label>
       <input id="nuevoCelular" maxlength="9">
-      <button class="btn" onclick="agregarEmpleado()">Guardar trabajador</button>
+      <button class="btn" onclick="agregarEmpleado()">Guardar colaborador</button>
       <p class="error" id="errorEmpleadoAdmin"></p>
     </div>
 
     <div class="card">
+      <h2>Buscar colaborador</h2>
+      <label>Nombre o N° de Dni</label>
+      <input id="buscarColab" placeholder="Escribe un nombre o DNI..." oninput="renderColaboradores()">
+      <small class="info" id="contadorColab"></small>
+      <div id="listaColaboradores"></div>
+    </div>
+
+    <div class="card">
       <h2>Subir boletas (varias a la vez)</h2>
-      <small class="info">Selecciona uno o más PDF. Luego asigna trabajador y mes/año a cada archivo.</small>
+      <small class="info">Selecciona uno o más PDF. Luego asigna colaborador y mes/año a cada archivo.</small>
       <input type="file" id="archivosInput" accept="application/pdf" multiple onchange="prepararArchivos()">
       <div id="filasArchivos"></div>
       <button class="btn oculto" id="btnSubirTodo" onclick="subirTodo()">Subir boletas</button>
@@ -571,7 +579,38 @@ async function cargarSolicitudes(){
 
 async function cargarEmpleadosCache(){
   const snap = await db.collection('empleados').get();
-  empleadosCache = snap.docs.map(d=>({ dni:d.id, nombre:d.data().nombre }));
+  empleadosCache = snap.docs.map(d=>({ dni:d.id, nombre:d.data().nombre || '', email:d.data().email || '', celular:d.data().celular || '' }));
+  renderColaboradores();
+}
+
+function esc(t){
+  return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderColaboradores(){
+  const cont = document.getElementById('listaColaboradores');
+  if(!cont) return;
+  const q = (document.getElementById('buscarColab').value || '').trim().toLowerCase();
+  const lista = empleadosCache
+    .filter(e=> !q || e.nombre.toLowerCase().includes(q) || e.dni.includes(q))
+    .sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  document.getElementById('contadorColab').textContent =
+    lista.length + (lista.length===1 ? ' colaborador' : ' colaboradores') + (q ? ' encontrado(s)' : ' registrado(s)');
+  cont.innerHTML = '';
+  if(!lista.length){ cont.innerHTML = '<p style="color:var(--gris)">No se encontraron colaboradores.</p>'; return; }
+  lista.forEach(e=>{
+    const div = document.createElement('div');
+    div.className = 'boleta';
+    div.style.borderLeftColor = 'var(--morado)';
+    div.style.background = '#f7f5fc';
+    div.innerHTML = `<div>
+      <strong>${esc(e.nombre)}</strong><br>
+      <span style="font-size:13px;">DNI: ${esc(e.dni)}</span><br>
+      <span style="font-size:13px;">Email: ${e.email ? esc(e.email) : '<em style="color:var(--gris)">sin registrar</em>'}</span><br>
+      <span style="font-size:13px;">Celular: ${e.celular ? esc(e.celular) : '<em style="color:var(--gris)">sin registrar</em>'}</span>
+    </div>`;
+    cont.appendChild(div);
+  });
 }
 
 function prepararArchivos(){
@@ -587,7 +626,7 @@ function prepararArchivos(){
     const opcionesMes = meses.map(m=>`<option value="${m}">${m}</option>`).join('');
     fila.innerHTML = `
       <span>${f.name}</span>
-      <select id="emp_${i}"><option value="">-- trabajador --</option>${opcionesEmpleados}</select>
+      <select id="emp_${i}"><option value="">-- colaborador --</option>${opcionesEmpleados}</select>
       <select id="mes_${i}">${opcionesMes}</select>`;
     const anio = document.createElement('input');
     anio.id = 'anio_' + i; anio.value = new Date().getFullYear(); anio.style.width='70px';
@@ -614,7 +653,7 @@ async function subirTodo(){
     const mes = document.getElementById('mes_'+i).value;
     const anio = document.getElementById('anio_'+i).value;
     const archivo = archivosSeleccionados[i];
-    if(!dni){ err.textContent = 'Falta asignar trabajador en el archivo: ' + archivo.name; return; }
+    if(!dni){ err.textContent = 'Falta asignar colaborador en el archivo: ' + archivo.name; return; }
     if(archivo.size > 700000){ err.textContent = 'El archivo ' + archivo.name + ' pesa demasiado (máx. aprox. 700KB en este modo gratuito).'; return; }
     const pdfBase64 = await leerArchivoBase64(archivo);
     await db.collection('boletas').add({ dni, mes, anio, pdfBase64, nombreArchivo: archivo.name, firmado:false, fechaSubida: new Date().toISOString() });
