@@ -80,9 +80,11 @@
   details.carpeta summary::-webkit-details-marker{display:none;}
   details.carpeta .resumen{font-weight:normal;font-size:12px;color:var(--gris);}
   details.carpeta .contenido-carpeta{margin-top:10px;}
+  body.fondo-login{background:#f4f2ef url("https://www.tshlogistic.com/wp-content/uploads/2020/10/BANNER_eDITADO-1.jpg") center center / cover no-repeat fixed;}
+  body.fondo-login .card{background:rgba(255,255,255,.96);box-shadow:0 4px 18px rgba(0,0,0,.25);}
 </style>
 </head>
-<body>
+<body class="fondo-login">
 
 <header id="headerPublico">
   <img class="logo-header" src="https://www.tshlogistic.com/wp-content/uploads/2020/10/LOGO_Tblanco.png" alt="TSH Logistic">
@@ -339,6 +341,7 @@ function mostrarEmpleado(){ document.getElementById('loginAdmin').classList.add(
 
 function salir(){
   empleadoActual = null;
+  document.body.classList.add('fondo-login');
   document.getElementById('appEmpleado').classList.add('oculto');
   document.getElementById('headerEmpleado').classList.add('oculto');
   document.getElementById('menuCuenta').classList.add('oculto');
@@ -436,6 +439,7 @@ async function loginEmpleado(){
   const claveGuardada = data.password || data.dni || dni;
   if(claveGuardada !== clave){ err.textContent = 'Clave incorrecta.'; return; }
   empleadoActual = { dni, ...data };
+  document.body.classList.remove('fondo-login');
   document.getElementById('vistaLogin').classList.add('oculto');
   if(!data.passwordCambiada){
     document.getElementById('vistaCambioClave').classList.remove('oculto');
@@ -477,6 +481,7 @@ async function loginAdmin(){
   const p = document.getElementById('adminPass').value;
   const err = document.getElementById('errorAdmin');
   if(u === ADMIN_USER && p === ADMIN_PASS){
+    document.body.classList.remove('fondo-login');
     document.getElementById('vistaLogin').classList.add('oculto');
     document.getElementById('vistaAdmin').classList.remove('oculto');
     document.getElementById('btnSalir').classList.remove('oculto');
