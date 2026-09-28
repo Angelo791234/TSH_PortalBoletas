@@ -65,6 +65,21 @@
   .fila-panel{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
   .bienvenida{background:#fff;color:var(--morado-oscuro);}
   @media(max-width:600px){.sidebar{width:64px;font-size:0;}.sidebar-item{font-size:18px;padding:14px 0;text-align:center;}.empresa-nombre{display:none;}}
+  .modal-fondo{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;}
+  .modal-fondo.encima{z-index:200;}
+  .modal{background:#fff;border-radius:10px;padding:22px;width:90%;max-width:400px;}
+  .modal h3{margin:0 0 8px;}
+  .modal-botones{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;}
+  .btn-sec{background:#e5e2ee;color:var(--morado-oscuro);}
+  .btn-peligro{background:#c0392b;}
+  .acciones{display:flex;gap:8px;}
+  .btn-icono{background:#fff;border:1px solid var(--borde);border-radius:6px;padding:6px 9px;cursor:pointer;font-size:16px;width:auto;}
+  .btn-icono:hover{background:var(--fondo);}
+  details.carpeta{background:#f7f5fc;border-left:4px solid var(--morado);border-radius:6px;margin-bottom:10px;padding:10px 12px;}
+  details.carpeta summary{cursor:pointer;font-weight:bold;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  details.carpeta summary::-webkit-details-marker{display:none;}
+  details.carpeta .resumen{font-weight:normal;font-size:12px;color:var(--gris);}
+  details.carpeta .contenido-carpeta{margin-top:10px;}
 </style>
 </head>
 <body>
@@ -256,6 +271,37 @@
   </div>
 </div>
 
+<!-- MODALES -->
+<div id="modalEditar" class="modal-fondo oculto">
+  <div class="modal">
+    <h3>Modificar datos del colaborador</h3>
+    <label>N° de Dni del Colaborador</label>
+    <input id="editDni" disabled>
+    <label>Nombres del Colaborador</label>
+    <input id="editNombre">
+    <label>Email del Colaborador</label>
+    <input id="editEmail" type="email">
+    <label>N° de Celular</label>
+    <input id="editCelular" maxlength="9">
+    <p class="error" id="errorEditar"></p>
+    <div class="modal-botones">
+      <button class="btn btn-sec" onclick="cerrarEditar()">Cancelar</button>
+      <button class="btn" onclick="guardarEdicion()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalConfirmar" class="modal-fondo encima oculto">
+  <div class="modal">
+    <h3 id="confirmTitulo">¿Está seguro de realizar cambios?</h3>
+    <p id="confirmDetalle" style="font-size:13px;color:var(--gris);margin:0 0 12px;"></p>
+    <div class="modal-botones">
+      <button class="btn btn-sec" id="confirmNo">No</button>
+      <button class="btn" id="confirmSi">Sí</button>
+    </div>
+  </div>
+</div>
+
 <!-- ====== FIREBASE ====== -->
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -426,7 +472,7 @@ async function olvideClave(){
   err.textContent = 'Listo, tu solicitud fue enviada al administrador.';
 }
 
-function loginAdmin(){
+async function loginAdmin(){
   const u = document.getElementById('adminUser').value.trim();
   const p = document.getElementById('adminPass').value;
   const err = document.getElementById('errorAdmin');
@@ -435,7 +481,7 @@ function loginAdmin(){
     document.getElementById('vistaAdmin').classList.remove('oculto');
     document.getElementById('btnSalir').classList.remove('oculto');
     document.getElementById('tituloHeader').textContent = 'Panel Administrador';
-    cargarEmpleadosCache();
+    await cargarEmpleadosCache();
     cargarBoletasAdmin();
     cargarSolicitudes();
   } else {
@@ -587,6 +633,17 @@ function esc(t){
   return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function confirmar(detalle){
+  return new Promise(resolve=>{
+    document.getElementById('confirmDetalle').textContent = detalle || '';
+    const modal = document.getElementById('modalConfirmar');
+    modal.classList.remove('oculto');
+    const cerrar = r=>{ modal.classList.add('oculto'); resolve(r); };
+    document.getElementById('confirmSi').onclick = ()=>cerrar(true);
+    document.getElementById('confirmNo').onclick = ()=>cerrar(false);
+  });
+}
+
 function renderColaboradores(){
   const cont = document.getElementById('listaColaboradores');
   if(!cont) return;
@@ -609,8 +666,57 @@ function renderColaboradores(){
       <span style="font-size:13px;">Email: ${e.email ? esc(e.email) : '<em style="color:var(--gris)">sin registrar</em>'}</span><br>
       <span style="font-size:13px;">Celular: ${e.celular ? esc(e.celular) : '<em style="color:var(--gris)">sin registrar</em>'}</span>
     </div>`;
+    const acciones = document.createElement('div');
+    acciones.className = 'acciones';
+    const bEditar = document.createElement('button');
+    bEditar.className = 'btn-icono'; bEditar.title = 'Modificar datos'; bEditar.textContent = '✏️';
+    bEditar.onclick = ()=>abrirEditar(e.dni);
+    const bEliminar = document.createElement('button');
+    bEliminar.className = 'btn-icono'; bEliminar.title = 'Eliminar colaborador'; bEliminar.textContent = '🗑️';
+    bEliminar.onclick = ()=>eliminarColaborador(e.dni);
+    acciones.appendChild(bEditar); acciones.appendChild(bEliminar);
+    div.appendChild(acciones);
     cont.appendChild(div);
   });
+}
+
+function abrirEditar(dni){
+  const e = empleadosCache.find(x=>x.dni===dni);
+  if(!e) return;
+  document.getElementById('editDni').value = e.dni;
+  document.getElementById('editNombre').value = e.nombre;
+  document.getElementById('editEmail').value = e.email;
+  document.getElementById('editCelular').value = e.celular;
+  document.getElementById('errorEditar').textContent = '';
+  document.getElementById('modalEditar').classList.remove('oculto');
+}
+
+function cerrarEditar(){
+  document.getElementById('modalEditar').classList.add('oculto');
+}
+
+async function guardarEdicion(){
+  const dni = document.getElementById('editDni').value;
+  const nombre = document.getElementById('editNombre').value.trim();
+  const email = document.getElementById('editEmail').value.trim();
+  const celular = document.getElementById('editCelular').value.trim();
+  const err = document.getElementById('errorEditar');
+  err.textContent = '';
+  if(!nombre){ err.textContent = 'Los nombres no pueden estar vacíos.'; return; }
+  if(!await confirmar('Se modificarán los datos de ' + nombre + ' (DNI ' + dni + ').')) return;
+  await db.collection('empleados').doc(dni).update({ nombre, email, celular });
+  cerrarEditar();
+  await cargarEmpleadosCache();
+  cargarBoletasAdmin();
+}
+
+async function eliminarColaborador(dni){
+  const e = empleadosCache.find(x=>x.dni===dni);
+  if(!e) return;
+  if(!await confirmar('Se eliminará a ' + e.nombre + ' (DNI ' + e.dni + '). Ya no podrá ingresar al portal. Sus boletas se conservarán en el sistema.')) return;
+  await db.collection('empleados').doc(dni).delete();
+  await cargarEmpleadosCache();
+  cargarBoletasAdmin();
 }
 
 function prepararArchivos(){
@@ -664,26 +770,52 @@ async function subirTodo(){
   cargarBoletasAdmin();
 }
 
+const carpetasAbiertas = new Set();
+
 async function cargarBoletasAdmin(){
   const snap = await db.collection('boletas').orderBy('fechaSubida','desc').get();
   const cont = document.getElementById('listaAdminBoletas');
   cont.innerHTML = '';
   if(snap.empty){ cont.innerHTML = '<p style="color:var(--gris)">Sin boletas subidas todavía.</p>'; return; }
+
+  const grupos = {};
   snap.forEach(doc=>{
     const b = doc.data();
-    const emp = empleadosCache.find(e=>e.dni===b.dni);
-    const div = document.createElement('div');
-    div.className = 'boleta ' + (b.firmado ? '' : 'pendiente');
-    div.innerHTML = `<div>${emp?emp.nombre:b.dni} — ${b.mes}/${b.anio}
-      <br><span class="badge ${b.firmado?'':'pend'}">${b.firmado?'FIRMADO':'PENDIENTE'}</span></div>`;
-    if(b.firmado){
-      const boton = document.createElement('button');
-      boton.className = 'btn';
-      boton.textContent = 'Descargar';
-      boton.onclick = ()=>trigerDescarga(b.pdfFirmadoBase64 || b.pdfBase64, b.nombreArchivo);
-      div.appendChild(boton);
-    }
-    cont.appendChild(div);
+    (grupos[b.dni] = grupos[b.dni] || []).push(b);
+  });
+
+  const carpetas = Object.keys(grupos).map(dni=>{
+    const emp = empleadosCache.find(e=>e.dni===dni);
+    return { dni, nombre: emp ? emp.nombre : 'Colaborador eliminado', boletas: grupos[dni] };
+  }).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+
+  carpetas.forEach(c=>{
+    c.boletas.sort((x,y)=> (y.anio + y.mes).localeCompare(x.anio + x.mes));
+    const pend = c.boletas.filter(b=>!b.firmado).length;
+    const det = document.createElement('details');
+    det.className = 'carpeta';
+    if(carpetasAbiertas.has(c.dni)) det.open = true;
+    det.addEventListener('toggle', ()=>{ det.open ? carpetasAbiertas.add(c.dni) : carpetasAbiertas.delete(c.dni); });
+    det.innerHTML = `<summary><span>📁 ${esc(c.nombre)} <span class="resumen">(DNI ${esc(c.dni)})</span></span>
+      <span class="resumen">${c.boletas.length} boleta(s) · ${pend} pendiente(s)</span></summary>`;
+    const contenido = document.createElement('div');
+    contenido.className = 'contenido-carpeta';
+    c.boletas.forEach(b=>{
+      const div = document.createElement('div');
+      div.className = 'boleta ' + (b.firmado ? '' : 'pendiente');
+      div.innerHTML = `<div>${esc(b.mes)}/${esc(b.anio)}
+        <br><span class="badge ${b.firmado?'':'pend'}">${b.firmado?'FIRMADO':'PENDIENTE'}</span></div>`;
+      if(b.firmado){
+        const boton = document.createElement('button');
+        boton.className = 'btn';
+        boton.textContent = 'Descargar';
+        boton.onclick = ()=>trigerDescarga(b.pdfFirmadoBase64 || b.pdfBase64, b.nombreArchivo);
+        div.appendChild(boton);
+      }
+      contenido.appendChild(div);
+    });
+    det.appendChild(contenido);
+    cont.appendChild(det);
   });
 }
 </script>
