@@ -37,14 +37,58 @@
   .campo-clave{position:relative;margin:6px 0 14px;}
   .campo-clave input{margin:0;padding-right:40px;}
   .campo-clave button{position:absolute;top:50%;right:6px;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;width:auto;color:var(--gris);}
+  .topbar{background:#fff;color:var(--morado-oscuro);padding:8px 20px;display:flex;flex-direction:row;justify-content:space-between;align-items:center;position:relative;box-shadow:0 1px 4px rgba(0,0,0,.12);}
+  .topbar-left{display:flex;align-items:center;gap:10px;}
+  .topbar-left img{height:38px;background:var(--morado-oscuro);padding:4px 8px;border-radius:6px;}
+  .empresa-nombre{font-weight:bold;font-size:15px;}
+  .topbar-right{position:relative;}
+  .btn-cuenta{display:flex;align-items:center;gap:8px;background:#fff;color:var(--morado-oscuro);border:1px solid var(--borde);padding:6px 10px;border-radius:8px;cursor:pointer;font-size:13px;}
+  .avatar-mini{width:26px;height:26px;border-radius:50%;background:var(--morado-oscuro);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;}
+  .avatar-grande{width:52px;height:52px;border-radius:50%;background:var(--morado-oscuro);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;margin:0 auto 8px;}
+  .menu-cuenta{position:absolute;top:115%;right:0;background:#fff;color:var(--texto);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.18);width:240px;padding:16px;z-index:20;}
+  .menu-cuenta-header{text-align:center;padding-bottom:12px;border-bottom:1px solid var(--borde);margin-bottom:8px;font-size:13px;}
+  .menu-cuenta-item{padding:10px 6px;cursor:pointer;font-size:14px;font-weight:bold;border-radius:6px;}
+  .menu-cuenta-item small{display:block;font-weight:normal;color:var(--gris);font-size:11px;}
+  .menu-cuenta-item:hover{background:var(--fondo);}
+  .app-layout{display:flex;min-height:calc(100vh - 62px);}
+  .sidebar{width:190px;background:var(--morado-oscuro);color:#fff;padding-top:8px;flex-shrink:0;}
+  .sidebar-item{padding:14px 20px;cursor:pointer;font-size:14px;}
+  .sidebar-item.activo{background:#8a35b0;font-weight:bold;}
+  .contenido-empleado{flex:1;padding:24px;max-width:760px;}
+  .perfil-card{text-align:center;}
+  .fila-panel{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+  .bienvenida{background:#fff;color:var(--morado-oscuro);}
+  @media(max-width:600px){.sidebar{width:64px;font-size:0;}.sidebar-item{font-size:18px;padding:14px 0;text-align:center;}.empresa-nombre{display:none;}}
 </style>
 </head>
 <body>
 
-<header>
+<header id="headerPublico">
   <img class="logo-header" src="https://www.tshlogistic.com/wp-content/uploads/2020/10/LOGO_Tblanco.png" alt="TSH Logistic">
   <h1 id="tituloHeader">Portal de Boletas TSH LOGISTIC S.A.</h1>
   <button class="btn btn-outline oculto" id="btnSalir" onclick="salir()">Salir</button>
+</header>
+
+<header id="headerEmpleado" class="topbar oculto">
+  <div class="topbar-left">
+    <img src="https://www.tshlogistic.com/wp-content/uploads/2020/10/LOGO_Tblanco.png" alt="TSH Logistic">
+    <span class="empresa-nombre">TSH LOGISTIC S.A.</span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-cuenta" onclick="toggleMenuCuenta()">
+      <span>TSH LOGISTIC</span>
+      <span class="avatar-mini" id="avatarMiniTopbar"></span>
+    </button>
+    <div class="menu-cuenta oculto" id="menuCuenta">
+      <div class="menu-cuenta-header">
+        <div class="avatar-grande" id="avatarMenuCuenta"></div>
+        <strong id="nombreMenuCuenta"></strong><br>
+        <span id="emailMenuCuenta" style="color:var(--gris);"></span>
+      </div>
+      <div class="menu-cuenta-item" onclick="mostrarActualizarDatos()">👤 Mi cuenta<small>Cambiar datos personales</small></div>
+      <div class="menu-cuenta-item" onclick="salir()">🚪 Salir</div>
+    </div>
+  </div>
 </header>
 
 <div class="contenedor">
@@ -103,27 +147,18 @@
     <p class="error" id="errorClave"></p>
   </div>
 
-  <!-- VISTA EMPLEADO -->
-  <div id="vistaEmpleado" class="oculto">
-    <div class="card">
-      <h2 id="saludoEmpleado"></h2>
-      <div class="tabs">
-        <div class="tab activo" id="tabPend" onclick="cambiarTab('pend')">Pendientes</div>
-        <div class="tab" id="tabFirm" onclick="cambiarTab('firm')">Firmados</div>
-      </div>
-      <div id="listaPendientes"></div>
-      <div id="listaFirmados" class="oculto"></div>
-    </div>
-  </div>
-
   <!-- VISTA ADMIN -->
   <div id="vistaAdmin" class="oculto">
     <div class="card">
       <h2>Agregar trabajador</h2>
-      <label>DNI</label>
+      <label>N° de Dni del Colaborador</label>
       <input id="nuevoDni" maxlength="8">
-      <label>Nombre completo</label>
+      <label>Nombres del Colaborador</label>
       <input id="nuevoNombre">
+      <label>Email del Colaborador</label>
+      <input id="nuevoEmail" type="email">
+      <label>N° de Celular</label>
+      <input id="nuevoCelular" maxlength="9">
       <button class="btn" onclick="agregarEmpleado()">Guardar trabajador</button>
       <p class="error" id="errorEmpleadoAdmin"></p>
     </div>
@@ -148,6 +183,63 @@
     </div>
   </div>
 
+</div>
+
+<!-- APP DEL COLABORADOR -->
+<div id="appEmpleado" class="app-layout oculto">
+  <aside class="sidebar">
+    <div class="sidebar-item activo" id="navInicio" onclick="mostrarSeccionEmpleado('inicio')">🏠 Inicio</div>
+    <div class="sidebar-item" id="navDocumentos" onclick="mostrarSeccionEmpleado('documentos')">📄 Documentos</div>
+  </aside>
+  <div class="contenido-empleado">
+
+    <div id="seccionInicio">
+      <div class="card perfil-card">
+        <div class="avatar-grande" id="avatarInicio" style="width:80px;height:80px;font-size:26px;"></div>
+        <h3 id="nombreInicio" style="margin:6px 0;"></h3>
+        <p id="emailInicio" style="color:var(--gris);margin:0;font-size:13px;"></p>
+      </div>
+      <div class="card bienvenida">
+        <h3 id="saludoInicio" style="margin:0 0 6px;"></h3>
+        <span style="font-size:13px;">Bienvenido nuevamente al portal de colaboradores</span>
+      </div>
+      <div class="card fila-panel" onclick="mostrarSeccionEmpleado('documentos')">
+        <div><strong>Documentos a firmar</strong><br>
+          <span id="contadorPendientesInicio" style="color:var(--gris);font-size:13px;"></span></div>
+        <span style="font-size:22px;">›</span>
+      </div>
+      <div class="card fila-panel" onclick="mostrarActualizarDatos()">
+        <div><strong>Actualización de datos</strong><br>
+          <span style="color:var(--gris);font-size:13px;">Modifica tus datos en la plataforma</span></div>
+        <span style="font-size:22px;">›</span>
+      </div>
+    </div>
+
+    <div id="seccionDocumentos" class="oculto">
+      <div class="card">
+        <h2>Mis Documentos</h2>
+        <div class="tabs">
+          <div class="tab activo" id="tabPend" onclick="cambiarTab('pend')">Pendientes</div>
+          <div class="tab" id="tabFirm" onclick="cambiarTab('firm')">Firmados</div>
+        </div>
+        <div id="listaPendientes"></div>
+        <div id="listaFirmados" class="oculto"></div>
+      </div>
+    </div>
+
+    <div id="seccionActualizarDatos" class="card oculto">
+      <h2>Actualización de datos</h2>
+      <label>Nombres completos</label>
+      <input id="perfilNombre">
+      <label>Email</label>
+      <input id="perfilEmail" type="email">
+      <label>N° de Celular</label>
+      <input id="perfilCelular" maxlength="9">
+      <button class="btn" onclick="guardarPerfil()">Guardar cambios</button>
+      <p class="error" id="errorPerfil"></p>
+    </div>
+
+  </div>
 </div>
 
 <!-- ====== FIREBASE ====== -->
@@ -187,22 +279,88 @@ function mostrarEmpleado(){ document.getElementById('loginAdmin').classList.add(
 
 function salir(){
   empleadoActual = null;
-  document.getElementById('vistaEmpleado').classList.add('oculto');
+  document.getElementById('appEmpleado').classList.add('oculto');
+  document.getElementById('headerEmpleado').classList.add('oculto');
+  document.getElementById('menuCuenta').classList.add('oculto');
+  document.getElementById('headerPublico').classList.remove('oculto');
   document.getElementById('vistaAdmin').classList.add('oculto');
   document.getElementById('vistaCambioClave').classList.add('oculto');
   document.getElementById('vistaLogin').classList.remove('oculto');
   document.getElementById('btnSalir').classList.add('oculto');
+  document.getElementById('dniInput').value = '';
+  document.getElementById('claveInput').value = '';
   document.getElementById('tituloHeader').textContent = 'Portal de Boletas TSH LOGISTIC S.A.';
+}
+
+function iniciales(nombre){
+  return (nombre || '').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase();
+}
+
+function saludoSegunHora(){
+  const h = new Date().getHours();
+  if(h < 12) return 'Buenos días';
+  if(h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+function refrescarDatosEmpleadoEnPantalla(){
+  const ini = iniciales(empleadoActual.nombre);
+  const email = empleadoActual.email || '';
+  document.getElementById('avatarMiniTopbar').textContent = ini;
+  document.getElementById('avatarMenuCuenta').textContent = ini;
+  document.getElementById('nombreMenuCuenta').textContent = empleadoActual.nombre;
+  document.getElementById('emailMenuCuenta').textContent = email;
+  document.getElementById('avatarInicio').textContent = ini;
+  document.getElementById('nombreInicio').textContent = empleadoActual.nombre;
+  document.getElementById('emailInicio').textContent = email;
+  document.getElementById('saludoInicio').textContent = saludoSegunHora() + ' ' + empleadoActual.nombre + ',';
 }
 
 function mostrarVistaEmpleado(){
   document.getElementById('vistaLogin').classList.add('oculto');
   document.getElementById('vistaCambioClave').classList.add('oculto');
-  document.getElementById('vistaEmpleado').classList.remove('oculto');
-  document.getElementById('btnSalir').classList.remove('oculto');
-  document.getElementById('tituloHeader').textContent = 'Mis Boletas';
-  document.getElementById('saludoEmpleado').textContent = 'Hola, ' + empleadoActual.nombre;
+  document.getElementById('headerPublico').classList.add('oculto');
+  document.getElementById('headerEmpleado').classList.remove('oculto');
+  document.getElementById('appEmpleado').classList.remove('oculto');
+  refrescarDatosEmpleadoEnPantalla();
+  mostrarSeccionEmpleado('inicio');
   cargarBoletasEmpleado();
+}
+
+function mostrarSeccionEmpleado(seccion){
+  document.getElementById('menuCuenta').classList.add('oculto');
+  document.getElementById('seccionInicio').classList.toggle('oculto', seccion!=='inicio');
+  document.getElementById('seccionDocumentos').classList.toggle('oculto', seccion!=='documentos');
+  document.getElementById('seccionActualizarDatos').classList.toggle('oculto', seccion!=='perfil');
+  document.getElementById('navInicio').classList.toggle('activo', seccion==='inicio');
+  document.getElementById('navDocumentos').classList.toggle('activo', seccion==='documentos');
+}
+
+function toggleMenuCuenta(){
+  document.getElementById('menuCuenta').classList.toggle('oculto');
+}
+
+function mostrarActualizarDatos(){
+  document.getElementById('perfilNombre').value = empleadoActual.nombre || '';
+  document.getElementById('perfilEmail').value = empleadoActual.email || '';
+  document.getElementById('perfilCelular').value = empleadoActual.celular || '';
+  document.getElementById('errorPerfil').textContent = '';
+  mostrarSeccionEmpleado('perfil');
+}
+
+async function guardarPerfil(){
+  const nombre = document.getElementById('perfilNombre').value.trim();
+  const email = document.getElementById('perfilEmail').value.trim();
+  const celular = document.getElementById('perfilCelular').value.trim();
+  const err = document.getElementById('errorPerfil');
+  err.style.color = '';
+  err.textContent = '';
+  if(!nombre){ err.textContent = 'Los nombres no pueden estar vacíos.'; return; }
+  await db.collection('empleados').doc(empleadoActual.dni).update({ nombre, email, celular });
+  empleadoActual.nombre = nombre; empleadoActual.email = email; empleadoActual.celular = celular;
+  refrescarDatosEmpleadoEnPantalla();
+  err.style.color = 'var(--verde)';
+  err.textContent = 'Datos actualizados correctamente.';
 }
 
 async function loginEmpleado(){
@@ -283,9 +441,11 @@ async function cargarBoletasEmpleado(){
   const pend = document.getElementById('listaPendientes');
   const firm = document.getElementById('listaFirmados');
   pend.innerHTML = ''; firm.innerHTML = '';
+  let pendCount = 0;
   if(snap.empty){ pend.innerHTML = '<p style="color:var(--gris)">No tienes boletas registradas.</p>'; }
   snap.forEach(doc=>{
     const b = doc.data();
+    if(!b.firmado) pendCount++;
     const div = document.createElement('div');
     div.className = 'boleta ' + (b.firmado ? '' : 'pendiente');
     div.innerHTML = `<div><strong>${b.mes}/${b.anio}</strong><br>
@@ -297,6 +457,7 @@ async function cargarBoletasEmpleado(){
     div.appendChild(boton);
     (b.firmado ? firm : pend).appendChild(div);
   });
+  document.getElementById('contadorPendientesInicio').textContent = pendCount + (pendCount===1 ? ' pendiente de firma' : ' pendientes de firma');
 }
 
 function trigerDescarga(dataUrl, nombreArchivo){
@@ -364,17 +525,18 @@ async function descargarBoleta(id, b){
 async function agregarEmpleado(){
   const dni = document.getElementById('nuevoDni').value.trim();
   const nombre = document.getElementById('nuevoNombre').value.trim();
+  const email = document.getElementById('nuevoEmail').value.trim();
+  const celular = document.getElementById('nuevoCelular').value.trim();
   const err = document.getElementById('errorEmpleadoAdmin');
   err.textContent = '';
-  if(!dni || !nombre){ err.textContent = 'Completa DNI y nombre.'; return; }
+  if(!dni || !nombre){ err.textContent = 'Completa al menos DNI y nombres.'; return; }
   const existente = await db.collection('empleados').doc(dni).get();
   if(existente.exists){
-    await db.collection('empleados').doc(dni).update({ nombre });
+    await db.collection('empleados').doc(dni).update({ nombre, email, celular });
   } else {
-    await db.collection('empleados').doc(dni).set({ nombre, password: dni, passwordCambiada: false });
+    await db.collection('empleados').doc(dni).set({ nombre, email, celular, password: dni, passwordCambiada: false });
   }
-  document.getElementById('nuevoDni').value = '';
-  document.getElementById('nuevoNombre').value = '';
+  ['nuevoDni','nuevoNombre','nuevoEmail','nuevoCelular'].forEach(id=>document.getElementById(id).value='');
   cargarEmpleadosCache();
 }
 
