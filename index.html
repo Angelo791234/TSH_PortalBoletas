@@ -54,7 +54,13 @@
   .sidebar{width:190px;background:var(--morado-oscuro);color:#fff;padding-top:8px;flex-shrink:0;}
   .sidebar-item{padding:14px 20px;cursor:pointer;font-size:14px;}
   .sidebar-item.activo{background:#8a35b0;font-weight:bold;}
-  .contenido-empleado{flex:1;padding:24px;max-width:760px;}
+  .contenido-empleado{flex:1;padding:24px;min-width:0;}
+  .inicio-grid{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start;}
+  .inicio-grid .perfil-card{grid-column:1;grid-row:1;}
+  .inicio-grid .card-docs{grid-column:1;grid-row:2;}
+  .inicio-grid .card-datos{grid-column:1;grid-row:3;}
+  .inicio-grid .bienvenida{grid-column:2;grid-row:1;}
+  @media(max-width:900px){.inicio-grid{grid-template-columns:1fr;}.inicio-grid .perfil-card,.inicio-grid .card-docs,.inicio-grid .card-datos,.inicio-grid .bienvenida{grid-column:1;grid-row:auto;}.inicio-grid .bienvenida{order:-1;}}
   .perfil-card{text-align:center;}
   .fila-panel{display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
   .bienvenida{background:#fff;color:var(--morado-oscuro);}
@@ -193,7 +199,7 @@
   </aside>
   <div class="contenido-empleado">
 
-    <div id="seccionInicio">
+    <div id="seccionInicio" class="inicio-grid">
       <div class="card perfil-card">
         <div class="avatar-grande" id="avatarInicio" style="width:80px;height:80px;font-size:26px;"></div>
         <h3 id="nombreInicio" style="margin:6px 0;"></h3>
@@ -203,12 +209,12 @@
         <h3 id="saludoInicio" style="margin:0 0 6px;"></h3>
         <span style="font-size:13px;">Bienvenido nuevamente al portal de colaboradores</span>
       </div>
-      <div class="card fila-panel" onclick="mostrarSeccionEmpleado('documentos')">
+      <div class="card fila-panel card-docs" onclick="mostrarSeccionEmpleado('documentos')">
         <div><strong>Documentos a firmar</strong><br>
           <span id="contadorPendientesInicio" style="color:var(--gris);font-size:13px;"></span></div>
         <span style="font-size:22px;">›</span>
       </div>
-      <div class="card fila-panel" onclick="mostrarActualizarDatos()">
+      <div class="card fila-panel card-datos" onclick="mostrarActualizarDatos()">
         <div><strong>Actualización de datos</strong><br>
           <span style="color:var(--gris);font-size:13px;">Modifica tus datos en la plataforma</span></div>
         <span style="font-size:22px;">›</span>
